@@ -2,7 +2,8 @@
 
 (require "info.rkt" "paths.rkt" "types.rkt" racket/hash racket/list  )
 
-(provide openapi)
+(provide openapi )
+
 (define (openapi info
                  #:tags (tags '())
                  #:types (schemas '())

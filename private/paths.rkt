@@ -84,11 +84,11 @@
   (~a (schema->name Entity) ": " text))
 
 (define (array-of->url ArrayOfEntity )
-  (~a "/"(string-downcase (array-of-desc ArrayOfEntity))))
+  (~a "/"(string-downcase (schema->string ArrayOfEntity))))
 
 (define (->/all Entity ArrayOfEntity NotFound   )
   (-> (desc-ref 'all (entity-title Entity "Lista todos items")) 
-      #:id (genOpId 'getAll (array-of-desc ArrayOfEntity) )
+      #:id (genOpId 'getAll (schema->string ArrayOfEntity) )
       #:params (: ?limit ?offset)
       (200: "OK" ArrayOfEntity)
       NotFound))
@@ -118,18 +118,30 @@
       (204: (entity-title Entity " Item borrado correctamente"))
       NotFound))
 
+
+(define (/<entities> 
+         #:all ArrayOfEntity
+         #:entity Entity
+         #:not-found NotFound)
+  (path  (array-of->url ArrayOfEntity ) (~a "Gestión de " (schema->string ArrayOfEntity))
+         #:get (->/all Entity ArrayOfEntity NotFound)
+         #:post (->/new Entity)))
+
+(define (/<entities>/<path-id> #:id param-id
+                               #:all ArrayOfEntity
+                               #:entity Entity
+                               #:not-found NotFound)
+  (path  (~a  (array-of->url ArrayOfEntity ) "/{" (hash-ref param-id 'name) "}")
+         (~a "Gestión de " (schema->string ArrayOfEntity)) 
+         param-id
+         #:get    (->/get    Entity NotFound)
+         #:put    (->/update Entity NotFound)
+         #:delete (->/remove Entity NotFound)))
+
+
 (define (/<entities>/... #:id param-id
                          #:all ArrayOfEntity
                          #:entity Entity
                          #:not-found NotFound)
-  (:
-   (path  (array-of->url ArrayOfEntity ) (~a "Lista de " (array-of-desc ArrayOfEntity))
-         #:get (->/all Entity ArrayOfEntity NotFound)
-         #:post (->/new Entity))
-   
-   (path  (~a  (array-of->url ArrayOfEntity ) "/{" (hash-ref param-id 'name) "}")
-          (~a "Gestion de " (array-of-desc ArrayOfEntity))
-          param-id
-          #:get    (->/get    Entity NotFound)
-          #:put    (->/update Entity NotFound)
-          #:delete (->/remove Entity NotFound))))
+  (: (/<entities>  #:all ArrayOfEntity #:entity Entity #:not-found NotFound)
+     (/<entities>/<path-id> #:id param-id #:all ArrayOfEntity #:entity Entity #:not-found NotFound)))

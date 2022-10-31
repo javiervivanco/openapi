@@ -3,6 +3,8 @@
 
 (provide (all-defined-out))
 
+(define all-defined-types (make-parameter '()))
+
 (define : list)
 
 (define-syntax-rule (define-primitive :NAME :TYPE :DEFAULT_FORMAT )
@@ -76,27 +78,36 @@
 (define (:schema-name a-schema)
   (car (hash-keys a-schema)))
 
+(define (schema->string aschema)
+  (symbol->string (:schema-name aschema)))
+
 (define (example schema ex)
   (hash-set! (car (hash-values schema)) 'example ex)) 
 
 (define-syntax-rule (define-schema (ID desc type))
-  (define ID (:schema 'ID desc type)))
+  (begin
+    (define ID (:schema 'ID desc type))
+    (all-defined-types (append (all-defined-types) (list ID)))
+    ))
 
 (define-syntax-rule (define-enum (ID desc (ENUM ...)))
-  (define ID (:schema 'ID desc (:enum desc (list 'ENUM ...)))))
-
-
-(define-syntax-rule (define-schema-object1 (ID DESC (PROP ARGS ...) ...))
-  (define ID (:schema-object 'ID DESC (prop 'PROP ARGS ... ) ... )
+  (begin
+    (define ID (:schema 'ID desc (:enum desc (list 'ENUM ...))))
+    (all-defined-types (append (all-defined-types) (list ID )))
     ))
+
+
 
 (define-syntax (define-schema-object stx)
   (syntax-case stx ()
     [(_  ((ID ARRAYOF) DESC (PROP ARGS ...) ...))
-     (with-syntax ([DESC (symbol->string (syntax->datum #'ARRAYOF))])
+     (with-syntax ([ARRAY-DESC (symbol->string (syntax->datum #'ARRAYOF))])
        #'(begin
            (define ID (:schema-object 'ID DESC (prop 'PROP ARGS ... ) ... ))
-           (define ARRAYOF (:array ID DESC))))]
+           (define ARRAYOF (:schema 'ARRAYOF (format "Lista de ~a "(symbol->string 'ARRAYOF)) (:array ID ARRAY-DESC)))
+           ;;(define ARRAYOF (:array ID ARRAY-DESC))
+           (all-defined-types (append (all-defined-types) (list ID ARRAYOF)))
+           ))]
     [(_  (ID DESC (PROP ARGS ...) ...))
      #'(define ID (:schema-object 'ID DESC (prop 'PROP ARGS ... ) ... ))]    ))
 
@@ -131,3 +142,5 @@
   (let*([content (make-hash `((description . ,desc)))]
         [root    (make-hash `((,key . ,content)))])
     (values root content)))
+
+(define-schema (UID "Identificador Unico de algo" :string ))
