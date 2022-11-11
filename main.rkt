@@ -3,7 +3,7 @@
 (require "private/types.rkt"
          "private/openapi.rkt"
          "private/paths.rkt"
-         "private/info.rkt"
+         "private/openapi-info.rkt"
          "private/response.rkt"
          "private/param.rkt"
          "private/entity.rkt")
@@ -14,6 +14,6 @@
   "private/types.rkt"
   "private/openapi.rkt"
   "private/paths.rkt"
-  "private/info.rkt"
+  "private/openapi-info.rkt"
   "private/response.rkt"
   "private/param.rkt"))
