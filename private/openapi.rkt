@@ -1,6 +1,6 @@
 #lang racket/base
 
-(require "info.rkt" "paths.rkt" "types.rkt" racket/hash racket/list  )
+(require "openapi-info.rkt" "paths.rkt" "types.rkt" racket/hash racket/list  )
 
 (provide openapi )
 

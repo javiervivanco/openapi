@@ -1,8 +1,8 @@
 #lang racket/base
 
-(provide (all-defined-out))
+(provide openapi-info)
 
-(define (info title (desc "") #:version (version "1.0.0"))
+(define (openapi-info title (desc "") #:version (version "1.0.0"))
   (let ([Info (make-hash `((title . ,title) (version . ,version) ))])
     (unless (equal? desc "") (hash-set! Info 'description desc))
     
