@@ -18,7 +18,7 @@ jobs:
           version: ${{ matrix.racket-version }}
       - name: Installing openapidsl and its dependencies
         run: raco pkg install --no-docs --auto --name openapidsl
-      - name: Compiling openapidsl and building its docs
-        run: raco setup --check-pkg-deps --unused-pkg-deps openapidsl
+#      - name: Compiling openapidsl and building its docs
+#        run: raco setup --check-pkg-deps --unused-pkg-deps openapidsl
       - name: Testing openapidsl
         run: raco test -x -p openapidsl
