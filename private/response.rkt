@@ -17,7 +17,8 @@
 (define-responses 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 421 422 423 424 425 426 427 428 429 430 451 )
 (define-responses 500 501 502 503 504 505 506 507 508 509 510)
 
-
+(define (response-content response)
+  (car (hash-values response )))
 (define (response code desc #:headers (headers '()) (body '()))
   (let-values ([(root content) (make-key-desc (string->symbol (number->string code)) desc)])
     (unless (null? body) (set-body! content body))
@@ -28,6 +29,10 @@
           (hash-set! ~headers (car kv)  (make-hash `((schema . ,(type-> (cadr kv)))))))))
     root))
 
-
+(define (response-examples-set! response examples)
+  (hash-set! (hash-ref (hash-ref (response-content response) 'content) 'application/json)
+             'examples
+             (make-hash (list (cons (gensym 'example) (make-hash (list (cons 'value examples))))))
+  ))
 (define (201: desc)
   (response 201 desc #:headers `((Content-Location ,:string))  '()))

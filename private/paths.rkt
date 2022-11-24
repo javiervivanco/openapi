@@ -1,5 +1,5 @@
 #lang racket/base
-(provide path -> body response  (all-from-out "param.rkt")  (all-from-out "response.rkt"))
+
 (require racket/format "types.rkt" "param.rkt" "response.rkt")
 
 (define (hash-set-not-null! h key val )
@@ -17,7 +17,7 @@
          #:tags (tags '())
          #:body (request-body '())
          #:params (params '())  sum  . responses)
-  (unless (string? sum) (error "summary must be string"))
+  (unless (string? sum) (error "summary must be string" sum))
   (define p (make-hash ))
   (hash-set-not-null! p 'description desc)
   (hash-set-not-null! p 'requestBody request-body)
@@ -54,15 +54,7 @@
     e
     ))
 
-(provide ->/all
-         ->/new
-         ->/get
-         ->/update
-         ->/remove
-         /<entities>/...
-         ?limit
-         ?offset
-         )
+
 (define ?limit  (&query 'limit "Limite de paginación" :integer))
 (define ?offset (&query 'offset "Desde donde comienza paginación" :integer))
 
@@ -71,7 +63,9 @@
   (string->symbol (~a OpIp (string-titlecase Entity))))
 
 
-(provide description)
+(provide (all-defined-out)
+         (all-from-out "param.rkt"
+                       "response.rkt"))
 
 (define description (make-parameter #f))
 
@@ -86,47 +80,87 @@
 (define (array-of->url ArrayOfEntity )
   (~a "/"(string-downcase (schema->string ArrayOfEntity))))
 
-(define (->/all Entity ArrayOfEntity NotFound   )
-  (-> (desc-ref 'all (entity-title Entity "Lista todos items")) 
-      #:id (genOpId 'getAll (schema->string ArrayOfEntity) )
-      #:params (: ?limit ?offset)
-      (200: "OK" ArrayOfEntity)
-      NotFound))
+(define (->/all Entity ArrayOfEntity NotFound #:desc (desc (desc-ref 'all (entity-title Entity "Lista todos items")))  )
+  ;;(println ArrayOfEntity)
+  (let ([response (200: "OK" ArrayOfEntity)])
+    (when (example? ArrayOfEntity)
+      (response-examples-set! response (example-ref ArrayOfEntity)))
+    (-> desc  
+        #:id (genOpId 'getAll (schema->string ArrayOfEntity) )
+        #:params (: ?limit ?offset)
+        response
+        NotFound)))
 
-(define (->/new Entity )
-  (-> (desc-ref 'new (entity-title Entity "Crear nuevo item"))
+(define (->/new Entity #:desc (desc (desc-ref 'new (entity-title Entity "Crear nuevo item"))))
+  (-> desc
       #:id (genOpId 'new (schema->name Entity))
       #:body (body (schema->name Entity)  Entity)
       (201: (entity-title Entity " Item creado"))))
 
-(define (->/get Entity NotFound)
-  (-> (desc-ref 'get (entity-title Entity "Traer")) 
+(define (->/get Entity NotFound #:desc (desc (desc-ref 'get (entity-title Entity "Traer"))))
+  (-> desc
       #:id (genOpId 'get (schema->name Entity) )
       (200: (entity-title Entity "OK")  Entity)
       NotFound))
 
-(define (->/update  Entity NotFound)
-  (-> (desc-ref 'update (entity-title Entity "Actualizar datos"))
+(define (->/update  Entity NotFound #:desc (desc (desc-ref 'update (entity-title Entity "Actualizar datos"))))
+  (-> desc
       #:id (genOpId 'update (schema->name Entity) )
       #:body (body  (entity-title Entity " Datos nuevos") Entity)
       (200: (entity-title Entity " Item actualizado correctamente"))
       NotFound))
 
-(define (->/remove Entity NotFound)
-  (-> (desc-ref 'remove (entity-title Entity "Borrar item"))
+(define (->/remove Entity NotFound #:desc (desc (desc-ref 'remove (entity-title Entity "Borrar item"))))
+  (-> desc
       #:id (genOpId 'remove (schema->name Entity) )
       (204: (entity-title Entity " Item borrado correctamente"))
       NotFound))
+
+(define (make-path-entities
+         #:all ArrayOfEntity
+         #:entity Entity
+         #:not-found NotFound
+         #:url (url (array-of->url ArrayOfEntity ))
+         #:desc (desc (~a "Gestión de " (schema->string ArrayOfEntity)))
+         #:delete (delete '())
+         #:put    (put '()) 
+         #:post   (post '())  
+         #:get    (get '()) 
+         . params )
+  (let ([kw  '()]
+        [val '()])
+    (define (add-kw! key var)
+      (unless (null? var)
+        (set! kw (append kw (list key)))
+        (set! val (append val (list var)))))
+    (add-kw! '#:delete (cond
+                         [(equal? delete #t) (->/remove Entity NotFound)]
+                         [(string? delete)   (->/remove Entity NotFound #:desc delete)]
+                         [else               '()]))
+    (add-kw! '#:get (if (null? get)
+                        (->/all Entity ArrayOfEntity NotFound)
+                        (->/all #:desc get Entity ArrayOfEntity NotFound)))
+    (add-kw! '#:post (if (null? post)                  
+                         (->/new Entity)
+                         (->/new Entity #:desc post)))
+    (add-kw! '#:put (cond
+                      [(equal? put #t) (->/update Entity NotFound)]
+                      [(string? put)   (->/update Entity NotFound #:desc put)]
+                      [else            '()]))
+    (keyword-apply path kw val (append (list url desc) params))))
+
 
 
 (define (/<entities> 
          #:all ArrayOfEntity
          #:entity Entity
          #:not-found NotFound)
-  (path  (array-of->url ArrayOfEntity ) (~a "Gestión de " (schema->string ArrayOfEntity))
-         #:get (->/all Entity ArrayOfEntity NotFound)
-         #:post (->/new Entity)))
-
+  (make-path-entities
+   #:all ArrayOfEntity
+   #:entity Entity
+   #:not-found NotFound
+   ))
+         
 (define (/<entities>/<path-id> #:id param-id
                                #:all ArrayOfEntity
                                #:entity Entity

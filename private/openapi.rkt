@@ -1,21 +1,24 @@
 #lang racket/base
 
-(require "openapi-info.rkt" "paths.rkt" "types.rkt" racket/hash racket/list  )
+(require "openapi-info.rkt" "paths.rkt" "types.rkt" racket/hash racket/port racket/list json  )
 
-(provide openapi )
+(provide openapi openapi-display )
+(define (openapi-display API)
+  (display (call-with-output-string (λ (out) (write-json API out)))))
 
-(define (openapi info
-                 #:tags (tags '())
-                 #:types (schemas '())
-                 . paths )
+(define (openapi  #:title title  #:desc desc  #:api-version version
+                  #:tags (tags '())
+                  #:types (schemas (all-defined-types))
+                  . paths )
   (let ([ast (make-hash
-              `((openapi . "3.1.0")
-                (info . ,info)
+              `((openapi . "3.0.0")
+                (info . ,(openapi-info title desc #:version version))
                 (paths .  ,(make-hasheq))
                 (tags . ,tags) ))])
     (unless (null? schemas)
       (hash-set! ast 'components
-                 (make-hash (list (cons 'schemas  (make-hash (apply append (map hash->list schemas))))))))
+                 (make-hash (list (cons 'schemas
+                                        (make-hash (apply append (map hash->list schemas))))))))
     (map
      (λ (a-path)
        (for ([a-url (hash-keys a-path) ])
@@ -30,7 +33,10 @@
            (when (href 'put #f)        (hash-set! h 'put     (href 'put    (make-hash))))           
            )))
      
-     (flatten paths))
+     (map (λ (p)
+            (cond [(procedure? p) (p)]
+                  [else p]))
+          (flatten paths)))
     ;(apply hash-union (map (λ (p) (hash-copy-clear p #:kind 'immutable)) paths))
     '(components
       security 
@@ -40,4 +46,3 @@
 
 
 
-          

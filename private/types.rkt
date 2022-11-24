@@ -20,7 +20,9 @@
                            (enum . ,(map (λ (e) (if (symbol? e) (symbol->string e) e))  enums))))])
     ;;(unless (null? example) (hash-set! type 'example example))
     type))
-
+(define (enum-ref schema)
+  (hash-ref (car (hash-values schema)) 'enum ))
+  
 (define-primitive :string "string" '())
 (define-primitive :byte "string" "byte")
 (define-primitive :password "string" "password")
@@ -84,6 +86,13 @@
 (define (example schema ex)
   (hash-set! (car (hash-values schema)) 'example ex)) 
 
+(define (example-ref schema (error '()))
+  (hash-ref (car (hash-values schema)) 'example error))
+
+
+(define (example? schema)
+  (not (null? (example-ref schema))))
+
 (define-syntax-rule (define-schema (ID desc type))
   (begin
     (define ID (:schema 'ID desc type))
@@ -96,14 +105,38 @@
     (all-defined-types (append (all-defined-types) (list ID )))
     ))
 
-
+(define example:
+  (make-keyword-procedure
+   (lambda (kws kw-args )
+     (make-hash
+      (map (λ (k v)
+             (cons (string->symbol (keyword->string k)) v))
+           kws kw-args )))))
 
 (define-syntax (define-schema-object stx)
   (syntax-case stx ()
     [(_  ((ID ARRAYOF) DESC (PROP ARGS ...) ...))
-     (with-syntax ([ARRAY-DESC (symbol->string (syntax->datum #'ARRAYOF))])
+     (with-syntax
+         ([ARRAY-DESC (symbol->string (syntax->datum #'ARRAYOF))]
+          [EXAMPLE    (format-id #'ID "~a:" #'ID)]
+          [EXAMPLES   (format-id #'ID "~a:" #'ARRAYOF)]
+          [EXAMPLES-VALUES   (format-id #'ID "~a-values:" #'ARRAYOF)]
+          [(PROP-EXA ...)  (map (λ (e) (format-id #'ID "~a-~a:" #'ID e)) (syntax-e  #'(PROP ...)))]
+          )
        #'(begin
            (define ID (:schema-object 'ID DESC (prop 'PROP ARGS ... ) ... ))
+           (define (EXAMPLES)
+             (example-ref ARRAYOF))
+           (define (EXAMPLES-VALUES)
+             (apply values (example-ref ARRAYOF)))
+           (define (PROP-EXA obj) (hash-ref obj 'PROP) ) ...
+           (define EXAMPLE
+             (make-keyword-procedure
+              (lambda (kws kw-args )
+                (let ((new (keyword-apply example: kws kw-args '())))
+                  (example ID new)
+                  (example ARRAYOF (append (example-ref ARRAYOF) (list new))))
+                (void))))
            (define ARRAYOF (:schema 'ARRAYOF (format "Lista de ~a "(symbol->string 'ARRAYOF)) (:array ID ARRAY-DESC)))
            ;;(define ARRAYOF (:array ID ARRAY-DESC))
            (all-defined-types (append (all-defined-types) (list ID ARRAYOF)))
@@ -137,6 +170,9 @@
 (define (set-body! root body)
   (let ([content (make-hash `((application/json . ,(make-hash `( (schema . ,(type-> body)) )))))])
     (hash-set!  root 'content content)))
+
+(define (body-ref root )
+    (hash-ref (hash-ref root 'content) 'application/json ))
 
 (define (make-key-desc key desc)
   (let*([content (make-hash `((description . ,desc)))]

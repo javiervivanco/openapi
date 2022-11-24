@@ -4,7 +4,10 @@
          "param.rkt"
          "paths.rkt"
          racket/syntax
+         racket/format
          (for-syntax
+          "paths.rkt"
+          
           racket/syntax
           racket/base))
 
@@ -22,6 +25,7 @@
             [ENTITY-PATH-ID  (format-id  #'ID "~a-id" entity-name)]
             [ENTITY-UID      (format-id  #'ID "~a-UID" #'ID)]
             [ENTITY-URI      (format-id  #'ID "/~a" entities-name)]
+            [MAKE-PATH-ENTITIES  (format-id  #'ID "make-path-~a" entities-name)]
             [ENTITY-URI1     (format-id  #'ID "/~a/<~a>" entities-name #'ENTITY-PATH-ID)]
             )
          #'(begin
@@ -30,12 +34,34 @@
              (define ?ENTITY-PATH-ID (&path 'ENTITY-PATH-ID (format "Identificador Unico de ~a" ENTITY-NAME) ENTITY-UID))
 
              (define-schema-object ((ID ARRAYOF) DESC  (PROP ARGS ...) ...))
-             (define-values (ENTITY-URI ENTITY-URI1)
-               (apply values (/<entities>/...
-                              #:id ?ENTITY-PATH-ID
-                              #:all ARRAYOF
-                              #:entity ID
-                              #:not-found ENTITY/404:)))
+             (define (MAKE-PATH-ENTITIES
+                      #:delete (delete '())
+                      #:put    (put    '()) 
+                      #:post   (post   '())  
+                      #:get    (get    '())                       
+                      #:url    (url    '())
+                      #:desc   (desc   '())
+                      . params)
+               (let ([kw   '(#:all)]
+                     [val  (list ARRAYOF)])
+                 (define (add-kw! key var)
+                   (unless (null? var)
+                     (set! kw (append kw (list key)))
+                     (set! val (append val (list var)))))
+                 (add-kw! '#:delete delete)
+                 (add-kw! '#:desc desc)                 
+                 (add-kw! '#:entity ID)                 
+                 (add-kw! '#:get get)
+                 (add-kw! '#:not-found ENTITY/404:)                 
+                 (add-kw! '#:post post)
+                 (add-kw! '#:put put)                 
+                 (add-kw! '#:url url)
+                 (keyword-apply make-path-entities kw val params)))
+             (define (ENTITY-URI #:all (all '()) )
+               (/<entities>  #:all ARRAYOF #:entity ID #:not-found ENTITY/404:))
+             (define (ENTITY-URI1)
+               (/<entities>/<path-id> #:id ?ENTITY-PATH-ID #:all ARRAYOF #:entity ID #:not-found ENTITY/404:))
+
              (provide ENTITY-UID ENTITY-URI1 ENTITY/404: ?ENTITY-PATH-ID ID ARRAYOF ENTITY-URI )
              )))
      ]
